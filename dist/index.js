@@ -31,27 +31,27 @@ function getBaseURL(params, context) {
 }
 
 /**
- * Active Directory Add User to Group Action
+ * Active Directory Remove User from Group Action
  *
- * Adds a user to a group in on-premise Active Directory using LDAP/LDAPS.
+ * Removes a user from a group in on-premise Active Directory using LDAP/LDAPS.
  */
 
 
 /**
- * Helper function to add a user to a group in Active Directory
+ * Helper function to remove a user from a group in Active Directory
  * @param {string} userDN - Distinguished Name of the user
  * @param {string} groupDN - Distinguished Name of the group
  * @param {Client} client - Bound ldapts Client instance
  * @returns {Promise<{success: boolean}>}
  */
-async function addUserToGroup(userDN, groupDN, client) {
+async function removeUserFromGroup(userDN, groupDN, client) {
   await client.modify(groupDN, [
     {
-      operation: 'add',
+      operation: 'delete',
       modification: {
-        member: [userDN],
-      },
-    },
+        member: [userDN]
+      }
+    }
   ]);
 
   return { success: true };
@@ -59,7 +59,7 @@ async function addUserToGroup(userDN, groupDN, client) {
 
 var script = {
   /**
-   * Main execution handler - adds a user to a group in on-premise Active Directory
+   * Main execution handler - removes a user from a group in on-premise Active Directory
    * @param {Object} params - Job input parameters
    * @param {string} params.userDN - Distinguished Name of the user
    * @param {string} params.groupDN - Distinguished Name of the group
@@ -72,7 +72,7 @@ var script = {
    * @returns {Object} Job results
    */
   invoke: async (params, context) => {
-    console.log('Starting Active Directory add user to group operation');
+    console.log('Starting Active Directory remove user from group operation');
 
     const { userDN, groupDN } = params;
 
@@ -95,39 +95,39 @@ var script = {
 
     const client = new ldapts.Client({
       url: address,
-      tlsOptions,
+      tlsOptions
     });
 
     try {
       console.log(`Binding to LDAP server at ${address}`);
       await client.bind(bindDN, bindPassword);
 
-      console.log(`Adding user ${userDN} to group ${groupDN}`);
-      await addUserToGroup(userDN, groupDN, client);
+      console.log(`Removing user ${userDN} from group ${groupDN}`);
+      await removeUserFromGroup(userDN, groupDN, client);
 
-      console.log(`Successfully added user ${userDN} to group ${groupDN}`);
+      console.log(`Successfully removed user ${userDN} from group ${groupDN}`);
       return {
         status: 'success',
         userDN,
         groupDN,
-        added: true,
-        address,
+        removed: true,
+        address
       };
     } catch (error) {
-      // LDAP error code 68: ENTRY_ALREADY_EXISTS - user is already a member
-      if (error.code === 68) {
-        console.log(`User ${userDN} is already a member of group ${groupDN}`);
+      // LDAP error code 16: NO_SUCH_ATTRIBUTE - user is not a member
+      if (error.code === 16) {
+        console.log(`User ${userDN} is not a member of group ${groupDN}`);
         return {
           status: 'success',
           userDN,
           groupDN,
-          added: false,
-          message: 'User is already a member of the group',
-          address,
+          removed: false,
+          message: 'User is not a member of the group',
+          address
         };
       }
 
-      console.error(`Error adding user to group: ${error.message}`);
+      console.error(`Error removing user from group: ${error.message}`);
       throw error;
     } finally {
       await client.unbind();
@@ -141,7 +141,7 @@ var script = {
    */
   error: async (params, _context) => {
     const { error, userDN, groupDN } = params;
-    console.error(`User group assignment failed for user ${userDN} to group ${groupDN}: ${error.message}`);
+    console.error(`User group removal failed for user ${userDN} from group ${groupDN}: ${error.message}`);
 
     throw error;
   },
@@ -154,16 +154,16 @@ var script = {
    */
   halt: async (params, _context) => {
     const { reason, userDN, groupDN } = params;
-    console.log(`Active Directory add user to group operation halted: ${reason}`);
+    console.log(`Active Directory remove user from group operation halted: ${reason}`);
 
     return {
       status: 'halted',
       userDN: userDN || 'unknown',
       groupDN: groupDN || 'unknown',
       reason,
-      halted_at: new Date().toISOString(),
+      halted_at: new Date().toISOString()
     };
-  },
+  }
 };
 
 module.exports = script;

@@ -22,7 +22,7 @@ const { Client } = await import('ldapts');
 const { getBaseURL } = await import('@sgnl-actions/utils');
 const { default: script } = await import('../src/script.mjs');
 
-describe('AD Add User to Group Script', () => {
+describe('AD Remove User from Group Script', () => {
   const mockContext = {
     environment: {
       ADDRESS: 'ldaps://ad.corp.example.com:636'
@@ -49,13 +49,13 @@ describe('AD Add User to Group Script', () => {
   });
 
   describe('invoke handler', () => {
-    test('should successfully add user to group', async () => {
+    test('should successfully remove user from group', async () => {
       const result = await script.invoke(defaultParams, mockContext);
 
       expect(result.status).toBe('success');
       expect(result.userDN).toBe(defaultParams.userDN);
       expect(result.groupDN).toBe(defaultParams.groupDN);
-      expect(result.added).toBe(true);
+      expect(result.removed).toBe(true);
       expect(result.address).toBe('ldaps://ad.corp.example.com:636');
 
       // Verify Client was constructed with correct URL
@@ -75,7 +75,7 @@ describe('AD Add User to Group Script', () => {
         defaultParams.groupDN,
         [
           {
-            operation: 'add',
+            operation: 'delete',
             modification: {
               member: [defaultParams.userDN]
             }
@@ -87,9 +87,9 @@ describe('AD Add User to Group Script', () => {
       expect(mockUnbind).toHaveBeenCalled();
     });
 
-    test('should handle user already a member (LDAP error code 68)', async () => {
-      const ldapError = new Error('Entry Already Exists');
-      ldapError.code = 68;
+    test('should handle user not a member (LDAP error code 16)', async () => {
+      const ldapError = new Error('No Such Attribute');
+      ldapError.code = 16;
       mockModify.mockRejectedValueOnce(ldapError);
 
       const result = await script.invoke(defaultParams, mockContext);
@@ -97,15 +97,15 @@ describe('AD Add User to Group Script', () => {
       expect(result.status).toBe('success');
       expect(result.userDN).toBe(defaultParams.userDN);
       expect(result.groupDN).toBe(defaultParams.groupDN);
-      expect(result.added).toBe(false);
-      expect(result.message).toBe('User is already a member of the group');
+      expect(result.removed).toBe(false);
+      expect(result.message).toBe('User is not a member of the group');
       expect(result.address).toBe('ldaps://ad.corp.example.com:636');
 
       // Verify unbind was still called
       expect(mockUnbind).toHaveBeenCalled();
     });
 
-    test('should throw on LDAP errors other than code 68', async () => {
+    test('should throw on LDAP errors other than code 16', async () => {
       const ldapError = new Error('No such object');
       ldapError.code = 32;
       mockModify.mockRejectedValueOnce(ldapError);
@@ -207,7 +207,7 @@ describe('AD Add User to Group Script', () => {
 
       await expect(script.error(params, mockContext)).rejects.toThrow(errorObj);
       expect(console.error).toHaveBeenCalledWith(
-        `User group assignment failed for user ${defaultParams.userDN} to group ${defaultParams.groupDN}: LDAP connection refused`
+        `User group removal failed for user ${defaultParams.userDN} from group ${defaultParams.groupDN}: LDAP connection refused`
       );
     });
 

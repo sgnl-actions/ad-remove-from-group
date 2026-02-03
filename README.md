@@ -1,16 +1,16 @@
-# Active Directory Add User to Group Action
+# Active Directory Remove User from Group Action
 
-This action adds a user to a group in on-premise Active Directory using LDAP/LDAPS.
+This action removes a user from a group in on-premise Active Directory using LDAP/LDAPS.
 
 ## Overview
 
-The AD Add User to Group action enables automated group membership management by adding users to Active Directory security groups or distribution groups via LDAP. It handles LDAP bind authentication, TLS configuration, and provides idempotent handling when a user is already a member of the target group.
+The AD Remove User from Group action enables automated group membership management by removing users from Active Directory security groups or distribution groups via LDAP. It handles LDAP bind authentication, TLS configuration, and provides idempotent handling when a user is not a member of the target group.
 
 ## Prerequisites
 
 - On-premise Active Directory domain controller accessible via LDAP or LDAPS
 - A service account with permissions to modify group membership
-  - Typically requires **Write** permission on the `member` attribute of target groups
+  - Typically requires **Write/Delete** permission on the `member` attribute of target groups
 - Network connectivity from the execution environment to the LDAP server
 
 ## Configuration
@@ -35,7 +35,7 @@ This action uses LDAP Simple Bind authentication with a service account.
 
 | Parameter | Type | Required | Description | Example |
 |-----------|------|----------|-------------|---------|
-| `userDN` | string | Yes | Distinguished Name of the user to add | `CN=John Doe,OU=Users,DC=corp,DC=example,DC=com` |
+| `userDN` | string | Yes | Distinguished Name of the user to remove | `CN=John Doe,OU=Users,DC=corp,DC=example,DC=com` |
 | `groupDN` | string | Yes | Distinguished Name of the target group | `CN=Admins,OU=Groups,DC=corp,DC=example,DC=com` |
 | `address` | string | No | Optional LDAP server URL override | `ldaps://ad.corp.example.com:636` |
 
@@ -46,9 +46,9 @@ This action uses LDAP Simple Bind authentication with a service account.
 | `status` | string | Operation result (success, failed, etc.) |
 | `userDN` | string | Distinguished Name of the user that was processed |
 | `groupDN` | string | Distinguished Name of the group that was processed |
-| `added` | boolean | Whether the user was newly added to the group |
+| `removed` | boolean | Whether the user was newly removed from the group |
 | `address` | string | The LDAP server URL that was used |
-| `message` | string | Optional message providing additional context (e.g., when user is already a member) |
+| `message` | string | Optional message providing additional context (e.g., when user is not a member) |
 
 ## Usage Examples
 
@@ -65,15 +65,15 @@ This action uses LDAP Simple Bind authentication with a service account.
 
 ```json
 {
-  "id": "add-user-to-hr-group",
+  "id": "remove-user-from-hr-group",
   "type": "nodejs-22",
   "script": {
-    "repository": "github.com/sgnl-actions/ad-add-to-group",
+    "repository": "github.com/sgnl-actions/ad-remove-from-group",
     "version": "v1.0.0",
     "type": "nodejs"
   },
   "script_inputs": {
-    "userDN": "CN=New Employee,OU=Users,DC=corp,DC=example,DC=com",
+    "userDN": "CN=Departing Employee,OU=Users,DC=corp,DC=example,DC=com",
     "groupDN": "CN=HR Group,OU=Groups,DC=corp,DC=example,DC=com"
   },
   "environment": {
@@ -92,15 +92,15 @@ For environments with self-signed certificates:
 
 ```json
 {
-  "id": "add-user-to-hr-group",
+  "id": "remove-user-from-hr-group",
   "type": "nodejs-22",
   "script": {
-    "repository": "github.com/sgnl-actions/ad-add-to-group",
+    "repository": "github.com/sgnl-actions/ad-remove-from-group",
     "version": "v1.0.0",
     "type": "nodejs"
   },
   "script_inputs": {
-    "userDN": "CN=New Employee,OU=Users,DC=corp,DC=example,DC=com",
+    "userDN": "CN=Departing Employee,OU=Users,DC=corp,DC=example,DC=com",
     "groupDN": "CN=HR Group,OU=Groups,DC=corp,DC=example,DC=com"
   },
   "environment": {
@@ -116,11 +116,11 @@ For environments with self-signed certificates:
 
 ## API Details
 
-This action uses the LDAP modify operation to add a user DN to the `member` attribute of the target group:
+This action uses the LDAP modify operation to delete a user DN from the `member` attribute of the target group:
 
 ```
 MODIFY groupDN
-  ADD member: userDN
+  DELETE member: userDN
 ```
 
 The connection lifecycle is stateless: each invocation binds to the LDAP server, performs the modify operation, and unbinds in a `finally` block.
@@ -129,8 +129,8 @@ The connection lifecycle is stateless: each invocation binds to the LDAP server,
 
 ### Success Scenarios
 
-- **Modify succeeds**: User successfully added to group (`added: true`)
-- **LDAP error code 68** (`ENTRY_ALREADY_EXISTS`): User is already a member, treated as success (`added: false`)
+- **Modify succeeds**: User successfully removed from group (`removed: true`)
+- **LDAP error code 16** (`NO_SUCH_ATTRIBUTE`): User is not a member, treated as success (`removed: false`)
 
 ### Retryable Errors
 
@@ -200,7 +200,7 @@ npm run lint
    - Check that the account is not locked or expired in Active Directory
 
 4. **"Insufficient access rights"**
-   - Verify the service account has Write permission on the `member` attribute of the target group
+   - Verify the service account has Write/Delete permission on the `member` attribute of the target group
    - Check if there are any deny ACEs blocking the operation
 
 5. **"No such object" (LDAP code 32)**
