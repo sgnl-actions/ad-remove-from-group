@@ -1,3 +1,4 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/sgnl-actions/schemas/main/metadata.schema.json
 name: ad-remove-from-group
 description: Remove a user from a group in on-premise Active Directory via LDAP
 
