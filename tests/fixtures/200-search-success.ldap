@@ -1,0 +1,10 @@
+# LDAP search operation success
+operation: search
+result: success
+code: 0
+message: "Search successful"
+searchEntries:
+  - dn: "CN=John Doe,OU=Users,DC=corp,DC=example,DC=com"
+    attributes:
+      distinguishedName: "CN=John Doe,OU=Users,DC=corp,DC=example,DC=com"
+      sAMAccountName: "jdoe"

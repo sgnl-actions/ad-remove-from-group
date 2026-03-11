@@ -1,0 +1,9 @@
+# Authentication failed
+operation: bind
+result: error
+code: 49
+message: "Invalid credentials"
+error:
+  name: "LDAPError"
+  code: 49
+  message: "Invalid credentials - bind failed"

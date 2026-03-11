@@ -1,0 +1,9 @@
+# Insufficient permissions to modify group
+operation: modify
+result: error
+code: 50
+message: "Insufficient access rights"
+error:
+  name: "LDAPError"
+  code: 50
+  message: "Insufficient access rights to modify group membership"

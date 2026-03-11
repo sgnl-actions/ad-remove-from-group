@@ -1,0 +1,14 @@
+# Multiple users found with same sAMAccountName
+operation: search
+result: success
+code: 0
+message: "Search successful"
+searchEntries:
+  - dn: "CN=John Doe,OU=Users,DC=corp,DC=example,DC=com"
+    attributes:
+      distinguishedName: "CN=John Doe,OU=Users,DC=corp,DC=example,DC=com"
+      sAMAccountName: "jdoe"
+  - dn: "CN=Jane Doe,OU=Contractors,DC=corp,DC=example,DC=com"
+    attributes:
+      distinguishedName: "CN=Jane Doe,OU=Contractors,DC=corp,DC=example,DC=com"
+      sAMAccountName: "jdoe"
