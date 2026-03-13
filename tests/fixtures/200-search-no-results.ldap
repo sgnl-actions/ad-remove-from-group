@@ -1,0 +1,6 @@
+# User not found in search
+operation: search
+result: success
+code: 0
+message: "Search successful"
+searchEntries: []

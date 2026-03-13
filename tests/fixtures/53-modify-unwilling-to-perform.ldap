@@ -1,0 +1,9 @@
+# Server unwilling to perform - user not a member (LDAP error code 53)
+operation: modify
+result: error
+code: 53
+message: "Server is unwilling to perform"
+error:
+  name: "LDAPError"
+  code: 53
+  message: "Server is unwilling to perform - Cannot remove member that does not exist in group"

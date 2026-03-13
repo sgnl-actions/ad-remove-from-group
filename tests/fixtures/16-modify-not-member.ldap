@@ -1,0 +1,9 @@
+# User not a member of group (LDAP error code 16 - No Such Attribute)
+operation: modify
+result: error
+code: 16
+message: "No Such Attribute"
+error:
+  name: "LDAPError"
+  code: 16
+  message: "No Such Attribute - The attribute member does not contain the specified value"

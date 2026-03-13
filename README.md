@@ -140,7 +140,9 @@ The connection lifecycle is stateless: each invocation binds to the LDAP server,
 ### Success Scenarios
 
 - **User removed**: User successfully removed from group (`removed: true`)
-- **Not a member**: User is not a member of the group (`removed: false`, LDAP code 16 handled gracefully)
+- **Not a member**: User is not a member of the group (`removed: false`, LDAP codes 16 or 53 handled gracefully)
+
+The action provides idempotent behavior - attempting to remove a user that is not a member of the group will return success rather than an error. Different Active Directory implementations may return either error code 16 ("No Such Attribute") or error code 53 ("Server Unwilling to Perform") for this scenario.
 
 ### Retryable Errors
 
@@ -211,13 +213,19 @@ npm run lint:fix
 
 ### Local testing
 
-Create a `../.env` file with your AD credentials:
+Create a `.env` file in the project root with your AD credentials:
 
 ```
 AD_ADDRESS=ldap://your-dc.example.com:389
 LDAP_BIND_DN=CN=admin,DC=example,DC=com
 LDAP_BIND_PASSWORD=your-password
 TLS_SKIP_VERIFY=false
+
+# Test parameters - customize as needed
+BASE_DN=DC=corp,DC=example,DC=com
+SAM_ACCOUNT_NAME=jsmith
+GROUP_DN=CN=Engineering Team,OU=Groups,DC=corp,DC=example,DC=com
+DRY_RUN=false
 ```
 
 Then run:
@@ -261,6 +269,11 @@ npm run dev
    - Verify the LDAP server is accessible on the configured port
    - For LDAPS, ensure the server certificate is trusted or set `TLS_SKIP_VERIFY=true` for testing
    - Check that the correct port is used (389 for LDAP, 636 for LDAPS)
+   - **Important**: TLS configuration only applies to `ldaps://` connections. Plain `ldap://` connections do not use TLS and should not have TLS options applied
+
+9. **"User not a member" variations**
+   - Different AD implementations may return error code 16 ("No Such Attribute") or error code 53 ("Server Unwilling to Perform") when trying to remove a user that is not a member
+   - Both errors are treated as idempotent success cases - the action will return `{ removed: false }` rather than throwing an error
 
 ### Testing Group Membership
 

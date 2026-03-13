@@ -151,7 +151,9 @@ export default {
     };
 
     // Configure TLS options for secure connections
-    if (address.startsWith('ldaps://') || context.environment?.TLS_SKIP_VERIFY === 'true') {
+    // Only apply TLS options to ldaps:// (encrypted) connections
+    // For ldap:// (plain text) connections, TLS options cause connection failures
+    if (address.startsWith('ldaps://')) {
       clientOptions.tlsOptions = {
         rejectUnauthorized: context.environment?.TLS_SKIP_VERIFY !== 'true'
       };
@@ -176,11 +178,13 @@ export default {
         userDN,
         groupDN,
         removed: true,
-        address
+        address,
+        baseDN,
+        samAccountName
       };
     } catch (error) {
-      // LDAP error code 16: NO_SUCH_ATTRIBUTE - user is not a member
-      if (error.code === 16) {
+      // LDAP error codes 16 (NO_SUCH_ATTRIBUTE) and 53 (UNWILLING_TO_PERFORM) - user is not a member
+      if (error.code === 16 || error.code === 53) {
         // Need to get userDN for the response - it might have been found before error
         let userDN = 'unknown';
         try {
@@ -195,7 +199,9 @@ export default {
           groupDN,
           removed: false,
           message: 'User is not a member of the group',
-          address
+          address,
+          baseDN,
+          samAccountName
         };
       }
 

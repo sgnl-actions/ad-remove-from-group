@@ -1,0 +1,9 @@
+# Group not found (LDAP error code 32 - No Such Object)
+operation: modify
+result: error
+code: 32
+message: "No Such Object"
+error:
+  name: "LDAPError"
+  code: 32
+  message: "No Such Object - The specified group does not exist"
