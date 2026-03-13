@@ -1,35 +1,35 @@
 # LDAP scenarios for ad-remove-from-group action
 action:
   params:
-    baseDN: DC=adaptertest,DC=sgnl,DC=ai
+    baseDN: DC=corp,DC=example,DC=com
     samAccountName: jdoe
-    groupDN: CN=Test Group,OU=Groups,DC=adaptertest,DC=sgnl,DC=ai
+    groupDN: CN=Test Group,OU=Groups,DC=corp,DC=example,DC=com
     dry_run: false
   context:
     secrets:
-      LDAP_BIND_DN: CN=testuser,OU=Users,OU=adaptertest,DC=adaptertest,DC=sgnl,DC=ai
-      LDAP_BIND_PASSWORD: Welcome123!
+      LDAP_BIND_DN: CN=svc-sgnl,OU=Service Accounts,DC=corp,DC=example,DC=com
+      LDAP_BIND_PASSWORD: test-password
     environment:
-      ADDRESS: ldap://managed-adapter-ad-5b022a4e7e96be14.elb.us-east-2.amazonaws.com:389
+      ADDRESS: ldaps://ad.corp.example.com:636
 
 scenarios:
   - name: successfully remove user from group
     steps:
       - ldap:
           operation: bind
-          bindDN: CN=testuser,OU=Users,OU=adaptertest,DC=adaptertest,DC=sgnl,DC=ai
+          bindDN: CN=svc-sgnl,OU=Service Accounts,DC=corp,DC=example,DC=com
           password: "[MASKED]"
         fixture: fixtures/200-bind-success.ldap
       - ldap:
           operation: search
-          baseDN: DC=adaptertest,DC=sgnl,DC=ai
+          baseDN: DC=corp,DC=example,DC=com
           scope: sub
           filter: (&(objectClass=user)(sAMAccountName=jdoe))
           attributes: [distinguishedName]
         fixture: fixtures/200-search-success.ldap
       - ldap:
           operation: modify
-          dn: CN=Test Group,OU=Groups,DC=adaptertest,DC=sgnl,DC=ai
+          dn: CN=Test Group,OU=Groups,DC=corp,DC=example,DC=com
           changes:
             - operation: delete
               modification:
@@ -42,29 +42,29 @@ scenarios:
       returns:
         status: success
         userDN: CN=John Doe,OU=Users,DC=corp,DC=example,DC=com
-        groupDN: CN=Test Group,OU=Groups,DC=adaptertest,DC=sgnl,DC=ai
+        groupDN: CN=Test Group,OU=Groups,DC=corp,DC=example,DC=com
         removed: true
-        address: ldap://managed-adapter-ad-5b022a4e7e96be14.elb.us-east-2.amazonaws.com:389
-        baseDN: DC=adaptertest,DC=sgnl,DC=ai
+        address: ldaps://ad.corp.example.com:636
+        baseDN: DC=corp,DC=example,DC=com
         samAccountName: jdoe
 
   - name: user not a member of group - treat as success
     steps:
       - ldap:
           operation: bind
-          bindDN: CN=testuser,OU=Users,OU=adaptertest,DC=adaptertest,DC=sgnl,DC=ai
+          bindDN: CN=svc-sgnl,OU=Service Accounts,DC=corp,DC=example,DC=com
           password: "[MASKED]"
         fixture: fixtures/200-bind-success.ldap
       - ldap:
           operation: search
-          baseDN: DC=adaptertest,DC=sgnl,DC=ai
+          baseDN: DC=corp,DC=example,DC=com
           scope: sub
           filter: (&(objectClass=user)(sAMAccountName=jdoe))
           attributes: [distinguishedName]
         fixture: fixtures/200-search-success.ldap
       - ldap:
           operation: modify
-          dn: CN=Test Group,OU=Groups,DC=adaptertest,DC=sgnl,DC=ai
+          dn: CN=Test Group,OU=Groups,DC=corp,DC=example,DC=com
           changes:
             - operation: delete
               modification:
@@ -77,23 +77,23 @@ scenarios:
       returns:
         status: success
         userDN: CN=John Doe,OU=Users,DC=corp,DC=example,DC=com
-        groupDN: CN=Test Group,OU=Groups,DC=adaptertest,DC=sgnl,DC=ai
+        groupDN: CN=Test Group,OU=Groups,DC=corp,DC=example,DC=com
         removed: false
         message: User is not a member of the group
-        address: ldap://managed-adapter-ad-5b022a4e7e96be14.elb.us-east-2.amazonaws.com:389
-        baseDN: DC=adaptertest,DC=sgnl,DC=ai
+        address: ldaps://ad.corp.example.com:636
+        baseDN: DC=corp,DC=example,DC=com
         samAccountName: jdoe
 
   - name: user not found
     steps:
       - ldap:
           operation: bind
-          bindDN: CN=testuser,OU=Users,OU=adaptertest,DC=adaptertest,DC=sgnl,DC=ai
+          bindDN: CN=svc-sgnl,OU=Service Accounts,DC=corp,DC=example,DC=com
           password: "[MASKED]"
         fixture: fixtures/200-bind-success.ldap
       - ldap:
           operation: search
-          baseDN: DC=adaptertest,DC=sgnl,DC=ai
+          baseDN: DC=corp,DC=example,DC=com
           scope: sub
           filter: (&(objectClass=user)(sAMAccountName=jdoe))
           attributes: [distinguishedName]
@@ -110,12 +110,12 @@ scenarios:
     steps:
       - ldap:
           operation: bind
-          bindDN: CN=testuser,OU=Users,OU=adaptertest,DC=adaptertest,DC=sgnl,DC=ai
+          bindDN: CN=svc-sgnl,OU=Service Accounts,DC=corp,DC=example,DC=com
           password: "[MASKED]"
         fixture: fixtures/200-bind-success.ldap
       - ldap:
           operation: search
-          baseDN: DC=adaptertest,DC=sgnl,DC=ai
+          baseDN: DC=corp,DC=example,DC=com
           scope: sub
           filter: (&(objectClass=user)(sAMAccountName=jdoe))
           attributes: [distinguishedName]
@@ -132,7 +132,7 @@ scenarios:
     steps:
       - ldap:
           operation: bind
-          bindDN: CN=testuser,OU=Users,OU=adaptertest,DC=adaptertest,DC=sgnl,DC=ai
+          bindDN: CN=svc-sgnl,OU=Service Accounts,DC=corp,DC=example,DC=com
           password: "[MASKED]"
         fixture: fixtures/49-bind-error.ldap
     invoke:
@@ -144,19 +144,19 @@ scenarios:
     steps:
       - ldap:
           operation: bind
-          bindDN: CN=testuser,OU=Users,OU=adaptertest,DC=adaptertest,DC=sgnl,DC=ai
+          bindDN: CN=svc-sgnl,OU=Service Accounts,DC=corp,DC=example,DC=com
           password: "[MASKED]"
         fixture: fixtures/200-bind-success.ldap
       - ldap:
           operation: search
-          baseDN: DC=adaptertest,DC=sgnl,DC=ai
+          baseDN: DC=corp,DC=example,DC=com
           scope: sub
           filter: (&(objectClass=user)(sAMAccountName=jdoe))
           attributes: [distinguishedName]
         fixture: fixtures/200-search-success.ldap
       - ldap:
           operation: modify
-          dn: CN=Nonexistent Group,OU=Groups,DC=adaptertest,DC=sgnl,DC=ai
+          dn: CN=Nonexistent Group,OU=Groups,DC=corp,DC=example,DC=com
           changes:
             - operation: delete
               modification:
@@ -166,7 +166,7 @@ scenarios:
           operation: unbind
         fixture: fixtures/200-unbind-success.ldap
     params:
-      groupDN: CN=Nonexistent Group,OU=Groups,DC=adaptertest,DC=sgnl,DC=ai
+      groupDN: CN=Nonexistent Group,OU=Groups,DC=corp,DC=example,DC=com
     invoke:
       throws: "No Such Object"
     error:
@@ -176,19 +176,19 @@ scenarios:
     steps:
       - ldap:
           operation: bind
-          bindDN: CN=testuser,OU=Users,OU=adaptertest,DC=adaptertest,DC=sgnl,DC=ai
+          bindDN: CN=svc-sgnl,OU=Service Accounts,DC=corp,DC=example,DC=com
           password: "[MASKED]"
         fixture: fixtures/200-bind-success.ldap
       - ldap:
           operation: search
-          baseDN: DC=adaptertest,DC=sgnl,DC=ai
+          baseDN: DC=corp,DC=example,DC=com
           scope: sub
           filter: (&(objectClass=user)(sAMAccountName=jdoe))
           attributes: [distinguishedName]
         fixture: fixtures/200-search-success.ldap
       - ldap:
           operation: modify
-          dn: CN=Test Group,OU=Groups,DC=adaptertest,DC=sgnl,DC=ai
+          dn: CN=Test Group,OU=Groups,DC=corp,DC=example,DC=com
           changes:
             - operation: delete
               modification:
@@ -209,11 +209,20 @@ scenarios:
     invoke:
       returns:
         status: dry_run_completed
-        baseDN: DC=adaptertest,DC=sgnl,DC=ai
+        baseDN: DC=corp,DC=example,DC=com
         samAccountName: jdoe
         userDN: null
-        groupDN: CN=Test Group,OU=Groups,DC=adaptertest,DC=sgnl,DC=ai
+        groupDN: CN=Test Group,OU=Groups,DC=corp,DC=example,DC=com
         removed: false
+
+  - name: missing required parameters
+    params:
+      baseDN: ""
+      samAccountName: jdoe
+      groupDN: CN=Test Group,OU=Groups,DC=corp,DC=example,DC=com
+    steps: []  # No LDAP operations due to validation failure
+    invoke:
+      throws: "baseDN is required"
 
   - name: special characters in sAMAccountName (escape testing)
     params:
@@ -221,19 +230,19 @@ scenarios:
     steps:
       - ldap:
           operation: bind
-          bindDN: CN=testuser,OU=Users,OU=adaptertest,DC=adaptertest,DC=sgnl,DC=ai
+          bindDN: CN=svc-sgnl,OU=Service Accounts,DC=corp,DC=example,DC=com
           password: "[MASKED]"
         fixture: fixtures/200-bind-success.ldap
       - ldap:
           operation: search
-          baseDN: DC=adaptertest,DC=sgnl,DC=ai
+          baseDN: DC=corp,DC=example,DC=com
           scope: sub
           filter: (&(objectClass=user)(sAMAccountName=domain\\5cuser\\2aspecial))
           attributes: [distinguishedName]
         fixture: fixtures/200-search-success.ldap
       - ldap:
           operation: modify
-          dn: CN=Test Group,OU=Groups,DC=adaptertest,DC=sgnl,DC=ai
+          dn: CN=Test Group,OU=Groups,DC=corp,DC=example,DC=com
           changes:
             - operation: delete
               modification:
@@ -246,9 +255,9 @@ scenarios:
       returns:
         status: success
         userDN: CN=John Doe,OU=Users,DC=corp,DC=example,DC=com
-        groupDN: CN=Test Group,OU=Groups,DC=adaptertest,DC=sgnl,DC=ai
+        groupDN: CN=Test Group,OU=Groups,DC=corp,DC=example,DC=com
         removed: true
-        baseDN: DC=adaptertest,DC=sgnl,DC=ai
+        baseDN: DC=corp,DC=example,DC=com
         samAccountName: domain\\user*special
 
   - name: idempotent removal - remove user twice (second call should succeed)
@@ -256,19 +265,19 @@ scenarios:
       # First removal - should succeed
       - ldap:
           operation: bind
-          bindDN: CN=testuser,OU=Users,OU=adaptertest,DC=adaptertest,DC=sgnl,DC=ai
+          bindDN: CN=svc-sgnl,OU=Service Accounts,DC=corp,DC=example,DC=com
           password: "[MASKED]"
         fixture: fixtures/200-bind-success.ldap
       - ldap:
           operation: search
-          baseDN: DC=adaptertest,DC=sgnl,DC=ai
+          baseDN: DC=corp,DC=example,DC=com
           scope: sub
           filter: (&(objectClass=user)(sAMAccountName=jdoe))
           attributes: [distinguishedName]
         fixture: fixtures/200-search-success.ldap
       - ldap:
           operation: modify
-          dn: CN=Test Group,OU=Groups,DC=adaptertest,DC=sgnl,DC=ai
+          dn: CN=Test Group,OU=Groups,DC=corp,DC=example,DC=com
           changes:
             - operation: delete
               modification:
@@ -281,10 +290,10 @@ scenarios:
       returns:
         status: success
         userDN: CN=John Doe,OU=Users,DC=corp,DC=example,DC=com
-        groupDN: CN=Test Group,OU=Groups,DC=adaptertest,DC=sgnl,DC=ai
+        groupDN: CN=Test Group,OU=Groups,DC=corp,DC=example,DC=com
         removed: true
-        address: ldap://managed-adapter-ad-5b022a4e7e96be14.elb.us-east-2.amazonaws.com:389
-        baseDN: DC=adaptertest,DC=sgnl,DC=ai
+        address: ldaps://ad.corp.example.com:636
+        baseDN: DC=corp,DC=example,DC=com
         samAccountName: jdoe
 
   - name: idempotent removal - second call should succeed with not a member
@@ -292,19 +301,19 @@ scenarios:
       # Second removal - user already removed, should succeed
       - ldap:
           operation: bind
-          bindDN: CN=testuser,OU=Users,OU=adaptertest,DC=adaptertest,DC=sgnl,DC=ai
+          bindDN: CN=svc-sgnl,OU=Service Accounts,DC=corp,DC=example,DC=com
           password: "[MASKED]"
         fixture: fixtures/200-bind-success.ldap
       - ldap:
           operation: search
-          baseDN: DC=adaptertest,DC=sgnl,DC=ai
+          baseDN: DC=corp,DC=example,DC=com
           scope: sub
           filter: (&(objectClass=user)(sAMAccountName=jdoe))
           attributes: [distinguishedName]
         fixture: fixtures/200-search-success.ldap
       - ldap:
           operation: modify
-          dn: CN=Test Group,OU=Groups,DC=adaptertest,DC=sgnl,DC=ai
+          dn: CN=Test Group,OU=Groups,DC=corp,DC=example,DC=com
           changes:
             - operation: delete
               modification:
@@ -317,30 +326,30 @@ scenarios:
       returns:
         status: success
         userDN: CN=John Doe,OU=Users,DC=corp,DC=example,DC=com
-        groupDN: CN=Test Group,OU=Groups,DC=adaptertest,DC=sgnl,DC=ai
+        groupDN: CN=Test Group,OU=Groups,DC=corp,DC=example,DC=com
         removed: false
         message: User is not a member of the group
-        address: ldap://managed-adapter-ad-5b022a4e7e96be14.elb.us-east-2.amazonaws.com:389
-        baseDN: DC=adaptertest,DC=sgnl,DC=ai
+        address: ldaps://ad.corp.example.com:636
+        baseDN: DC=corp,DC=example,DC=com
         samAccountName: jdoe
 
   - name: server unwilling to perform - user not a member (error code 53)
     steps:
       - ldap:
           operation: bind
-          bindDN: CN=testuser,OU=Users,OU=adaptertest,DC=adaptertest,DC=sgnl,DC=ai
+          bindDN: CN=svc-sgnl,OU=Service Accounts,DC=corp,DC=example,DC=com
           password: "[MASKED]"
         fixture: fixtures/200-bind-success.ldap
       - ldap:
           operation: search
-          baseDN: DC=adaptertest,DC=sgnl,DC=ai
+          baseDN: DC=corp,DC=example,DC=com
           scope: sub
           filter: (&(objectClass=user)(sAMAccountName=jdoe))
           attributes: [distinguishedName]
         fixture: fixtures/200-search-success.ldap
       - ldap:
           operation: modify
-          dn: CN=Test Group,OU=Groups,DC=adaptertest,DC=sgnl,DC=ai
+          dn: CN=Test Group,OU=Groups,DC=corp,DC=example,DC=com
           changes:
             - operation: delete
               modification:
@@ -353,9 +362,9 @@ scenarios:
       returns:
         status: success
         userDN: CN=John Doe,OU=Users,DC=corp,DC=example,DC=com
-        groupDN: CN=Test Group,OU=Groups,DC=adaptertest,DC=sgnl,DC=ai
+        groupDN: CN=Test Group,OU=Groups,DC=corp,DC=example,DC=com
         removed: false
         message: User is not a member of the group
-        address: ldap://managed-adapter-ad-5b022a4e7e96be14.elb.us-east-2.amazonaws.com:389
-        baseDN: DC=adaptertest,DC=sgnl,DC=ai
+        address: ldaps://ad.corp.example.com:636
+        baseDN: DC=corp,DC=example,DC=com
         samAccountName: jdoe
