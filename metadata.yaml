@@ -1,12 +1,12 @@
 # yaml-language-server: $schema=https://raw.githubusercontent.com/sgnl-actions/schemas/main/metadata.schema.json
 name: ad-remove-from-group
-description: Remove a user from a group in on-premise Active Directory via LDAP
+description: Remove a user or group from a group in on-premise Active Directory via LDAP
 
 # Input parameters for web form generation
 inputs:
   baseDN:
     type: text
-    description: Base DN to search for the user (e.g., DC=corp,DC=example,DC=com)
+    description: Base DN to search for the member (e.g., DC=corp,DC=example,DC=com)
     required: true
     validation:
       min: 1
@@ -14,7 +14,7 @@ inputs:
 
   samAccountName:
     type: text
-    description: The user's sAMAccountName (pre-Windows 2000 logon name) to lookup
+    description: The sAMAccountName (pre-Windows 2000 logon name) of the user or group to lookup
     required: true
     validation:
       min: 1
@@ -47,9 +47,13 @@ outputs:
     type: text
     description: Operation result (success, dry_run_completed, halted)
 
+  memberDN:
+    type: text
+    description: The resolved Distinguished Name of the member (user or group)
+
   userDN:
     type: text
-    description: The resolved Distinguished Name of the user
+    description: Backward-compatible alias for memberDN (same value)
 
   groupDN:
     type: text
@@ -57,7 +61,7 @@ outputs:
 
   removed:
     type: boolean
-    description: Whether the user was newly removed from the group
+    description: Whether the member was newly removed from the group
 
   address:
     type: text
@@ -65,11 +69,11 @@ outputs:
 
   baseDN:
     type: text
-    description: The base DN used to search for the user
+    description: The base DN used to search for the member
 
   samAccountName:
     type: text
-    description: The sAMAccountName used to identify the user
+    description: The sAMAccountName used to identify the member
 
   message:
     type: text

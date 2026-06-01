@@ -27,6 +27,7 @@ const mockContext = {
 };
 
 // Action-specific parameters - customize these for your test
+// samAccountName can identify either a user or a group (both are supported as members)
 const mockParams = {
   baseDN: process.env.BASE_DN || 'DC=corp,DC=example,DC=com',
   samAccountName: process.env.SAM_ACCOUNT_NAME || 'jsmith',

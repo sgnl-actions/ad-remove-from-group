@@ -1,8 +1,9 @@
 /**
- * Active Directory Remove User from Group Action
+ * Active Directory Remove Member from Group Action
  *
- * Removes a user from a group in on-premise Active Directory using LDAP/LDAPS.
- * If the user is not a member, returns success with removed=false.
+ * Removes a member (user or group) from a group in on-premise Active Directory
+ * using LDAP/LDAPS. If the member is not in the group, returns success with
+ * removed=false.
  */
 
 import { Client, Change, Attribute } from 'ldapts';
@@ -19,35 +20,37 @@ function escapeLDAPFilter(str) {
 }
 
 /**
- * Find a user's Distinguished Name by searching for their sAMAccountName.
+ * Find a member's Distinguished Name by searching for their sAMAccountName.
+ * Matches both user and group objects since sAMAccountName is unique across
+ * the domain for both types.
  *
  * @param {Client} client - Bound ldapts Client instance
  * @param {string} baseDN - Base DN to search from
- * @param {string} samAccountName - User's sAMAccountName
- * @returns {Promise<string>} The user's Distinguished Name
- * @throws {Error} If user not found or multiple users found
+ * @param {string} samAccountName - Member's sAMAccountName
+ * @returns {Promise<string>} The member's Distinguished Name
+ * @throws {Error} If member not found or multiple members found
  */
-async function findUserDN(client, baseDN, samAccountName) {
-  console.log(`Searching for user with sAMAccountName: ${samAccountName}`);
+async function findMemberDN(client, baseDN, samAccountName) {
+  console.log(`Searching for member with sAMAccountName: ${samAccountName}`);
 
   const escapedSamAccountName = escapeLDAPFilter(samAccountName);
   const { searchEntries } = await client.search(baseDN, {
     scope: 'sub',
-    filter: `(&(objectClass=user)(sAMAccountName=${escapedSamAccountName}))`,
+    filter: `(&(|(objectClass=user)(objectClass=group))(sAMAccountName=${escapedSamAccountName}))`,
     attributes: ['distinguishedName']
   });
 
   if (!searchEntries || searchEntries.length === 0) {
-    throw new Error(`User not found with sAMAccountName: ${samAccountName}`);
+    throw new Error(`Member not found with sAMAccountName: ${samAccountName}`);
   }
 
   if (searchEntries.length > 1) {
-    throw new Error(`Multiple users found with sAMAccountName: ${samAccountName}. Expected exactly one.`);
+    throw new Error(`Multiple members found with sAMAccountName: ${samAccountName}. Expected exactly one.`);
   }
 
-  const userDN = searchEntries[0].dn;
-  console.log(`Found user DN: ${userDN}`);
-  return userDN;
+  const memberDN = searchEntries[0].dn;
+  console.log(`Found member DN: ${memberDN}`);
+  return memberDN;
 }
 
 /**
@@ -68,20 +71,20 @@ async function safeUnbind(client) {
 }
 
 /**
- * Remove a user from a group in Active Directory by modifying the group's member attribute.
+ * Remove a member from a group in Active Directory by modifying the group's member attribute.
  *
- * @param {string} userDN - Distinguished Name of the user to remove
+ * @param {string} memberDN - Distinguished Name of the member to remove
  * @param {string} groupDN - Distinguished Name of the group
  * @param {Client} client - Bound ldapts Client instance
  * @returns {Promise<{success: boolean}>}
  */
-async function removeUserFromGroup(userDN, groupDN, client) {
+async function removeMemberFromGroup(memberDN, groupDN, client) {
   await client.modify(groupDN, [
     new Change({
       operation: 'delete',
       modification: new Attribute({
         type: 'member',
-        values: [userDN]
+        values: [memberDN]
       })
     })
   ]);
@@ -91,19 +94,19 @@ async function removeUserFromGroup(userDN, groupDN, client) {
 
 export default {
   /**
-   * Main execution handler - removes a user from a group in Active Directory.
+   * Main execution handler - removes a member (user or group) from a group in Active Directory.
    *
    * @param {Object} params - Job input parameters
-   * @param {string} params.baseDN - Base DN to search for the user
-   * @param {string} params.samAccountName - User's sAMAccountName to lookup
+   * @param {string} params.baseDN - Base DN to search for the member
+   * @param {string} params.samAccountName - Member's sAMAccountName to lookup
    * @param {string} params.groupDN - Distinguished Name of the group
    * @param {string} [params.address] - Optional LDAP server URL override
    * @param {boolean} [params.dry_run] - If true, validate without making changes
    * @param {Object} context - Execution context with environment and secrets
-   * @returns {Object} Job results including status, userDN, groupDN, and removed flag
+   * @returns {Object} Job results including status, memberDN, groupDN, and removed flag
    */
   invoke: async (params, context) => {
-    console.log('Starting Active Directory remove user from group operation');
+    console.log('Starting Active Directory remove member from group operation');
 
     const { baseDN, samAccountName, groupDN, dry_run = false } = params;
 
@@ -118,7 +121,7 @@ export default {
       throw new Error('groupDN is required');
     }
 
-    console.log(`Planning to remove user "${samAccountName}" from group "${groupDN}"`);
+    console.log(`Planning to remove member "${samAccountName}" from group "${groupDN}"`);
 
     // Handle dry run - validate and return without making changes
     if (dry_run) {
@@ -127,6 +130,7 @@ export default {
         status: 'dry_run_completed',
         baseDN,
         samAccountName,
+        memberDN: null,
         userDN: null,
         groupDN,
         removed: false
@@ -166,16 +170,17 @@ export default {
       await client.bind(bindDN, bindPassword);
       console.log('Successfully authenticated to LDAP server');
 
-      // Lookup user DN by sAMAccountName
-      const userDN = await findUserDN(client, baseDN, samAccountName);
+      // Lookup member DN by sAMAccountName
+      const memberDN = await findMemberDN(client, baseDN, samAccountName);
 
-      console.log(`Removing user from group: ${groupDN}`);
-      await removeUserFromGroup(userDN, groupDN, client);
+      console.log(`Removing member from group: ${groupDN}`);
+      await removeMemberFromGroup(memberDN, groupDN, client);
 
-      console.log(`Successfully removed user "${userDN}" from group "${groupDN}"`);
+      console.log(`Successfully removed member "${memberDN}" from group "${groupDN}"`);
       return {
         status: 'success',
-        userDN,
+        memberDN,
+        userDN: memberDN,
         groupDN,
         removed: true,
         address,
@@ -183,29 +188,30 @@ export default {
         samAccountName
       };
     } catch (error) {
-      // LDAP error codes 16 (NO_SUCH_ATTRIBUTE) and 53 (UNWILLING_TO_PERFORM) - user is not a member
+      // LDAP error codes 16 (NO_SUCH_ATTRIBUTE) and 53 (UNWILLING_TO_PERFORM) - member is not in the group
       if (error.code === 16 || error.code === 53) {
-        // Need to get userDN for the response - it might have been found before error
-        let userDN = 'unknown';
+        // Need to get memberDN for the response - it might have been found before error
+        let memberDN = 'unknown';
         try {
-          userDN = await findUserDN(client, baseDN, samAccountName);
+          memberDN = await findMemberDN(client, baseDN, samAccountName);
         } catch (lookupError) {
-          console.warn(`Warning: Could not retrieve user DN for response: ${lookupError.message}`);
+          console.warn(`Warning: Could not retrieve member DN for response: ${lookupError.message}`);
         }
-        console.log(`User "${userDN}" is not a member of group "${groupDN}"`);
+        console.log(`Member "${memberDN}" is not a member of group "${groupDN}"`);
         return {
           status: 'success',
-          userDN,
+          memberDN,
+          userDN: memberDN,
           groupDN,
           removed: false,
-          message: 'User is not a member of the group',
+          message: 'Member is not in the group',
           address,
           baseDN,
           samAccountName
         };
       }
 
-      console.error(`Failed to remove user from group: ${error.message}`);
+      console.error(`Failed to remove member from group: ${error.message}`);
       throw error;
     } finally {
       await safeUnbind(client);
@@ -245,16 +251,16 @@ export default {
       throw error;
     }
 
-    // User not found (fatal - don't retry)
-    if (errorMessage.includes('user not found')) {
-      console.error('User not found - check samAccountName and baseDN');
-      throw new Error(`User not found: ${error.message}`);
+    // Member not found (fatal - don't retry)
+    if (errorMessage.includes('member not found')) {
+      console.error('Member not found - check samAccountName and baseDN');
+      throw new Error(`Member not found: ${error.message}`);
     }
 
-    // Multiple users found (fatal - don't retry)
-    if (errorMessage.includes('multiple users found')) {
-      console.error('Multiple users found - sAMAccountName should be unique');
-      throw new Error(`Multiple users found: ${error.message}`);
+    // Multiple members found (fatal - don't retry)
+    if (errorMessage.includes('multiple members found')) {
+      console.error('Multiple members found - sAMAccountName should be unique');
+      throw new Error(`Multiple members found: ${error.message}`);
     }
 
     // Not found (fatal - don't retry)
@@ -289,7 +295,7 @@ export default {
    */
   halt: async (params, _context) => {
     const { reason, baseDN, samAccountName, groupDN } = params;
-    console.log(`Active Directory remove user from group operation halted: ${reason}`);
+    console.log(`Active Directory remove member from group operation halted: ${reason}`);
 
     return {
       status: 'halted',

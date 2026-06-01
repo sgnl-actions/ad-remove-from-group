@@ -1,16 +1,16 @@
-# Active Directory Remove User from Group Action
+# Active Directory Remove Member from Group Action
 
-This action removes a user from a group in on-premise Active Directory using LDAP/LDAPS.
+This action removes a member (user or group) from a group in on-premise Active Directory using LDAP/LDAPS.
 
 ## Overview
 
-The AD Remove User from Group action enables automated group membership management by removing users from Active Directory security groups or distribution groups via LDAP. It first looks up the user by their `sAMAccountName`, then removes them from the specified group. The action handles LDAP bind authentication, TLS configuration, and provides idempotent handling when a user is not a member of the target group.
+The AD Remove Member from Group action enables automated group membership management by removing members from Active Directory security groups or distribution groups via LDAP. Both **users** and **groups** can be removed as members — nested group membership is supported. The action first looks up the member by their `sAMAccountName` (which is unique across the domain for both users and groups), then removes them from the specified group. It handles LDAP bind authentication, TLS configuration, and provides idempotent handling when a member is not in the target group.
 
 ## Prerequisites
 
 - On-premise Active Directory domain controller accessible via LDAP or LDAPS
 - A service account with permissions to:
-  - Search for users in the specified base DN
+  - Search for users and groups in the specified base DN
   - Modify the `member` attribute on target groups
 - Network connectivity from the execution environment to the LDAP server
 
@@ -36,8 +36,8 @@ This action uses LDAP Simple Bind authentication with a service account.
 
 | Parameter | Type | Required | Description | Example |
 |-----------|------|----------|-------------|---------|
-| `baseDN` | string | Yes | Base DN to search for the user | `DC=corp,DC=example,DC=com` |
-| `samAccountName` | string | Yes | The user's sAMAccountName (pre-Windows 2000 logon name) | `jdoe` |
+| `baseDN` | string | Yes | Base DN to search for the member | `DC=corp,DC=example,DC=com` |
+| `samAccountName` | string | Yes | The sAMAccountName of the user or group to remove (sAMAccountName is unique across the domain for both types) | `jdoe` or `EngineeringTeam` |
 | `groupDN` | string | Yes | Distinguished Name of the target group | `CN=Admins,OU=Groups,DC=corp,DC=example,DC=com` |
 | `address` | string | No | Optional LDAP server URL override | `ldaps://ad.corp.example.com:636` |
 | `dry_run` | boolean | No | When true, validates parameters without making changes | `false` |
@@ -47,15 +47,16 @@ This action uses LDAP Simple Bind authentication with a service account.
 | Field | Type | Description |
 |-------|------|-------------|
 | `status` | string | Operation result (success, dry_run_completed, halted) |
-| `userDN` | string | The resolved Distinguished Name of the user |
+| `memberDN` | string | The resolved Distinguished Name of the member (user or group) |
+| `userDN` | string | Backward-compatible alias for `memberDN` (same value) |
 | `groupDN` | string | Distinguished Name of the group that was processed |
-| `removed` | boolean | Whether the user was newly removed from the group |
+| `removed` | boolean | Whether the member was newly removed from the group |
 | `address` | string | The LDAP server URL that was used |
-| `message` | string | Optional message providing additional context (e.g., when user is not a member) |
+| `message` | string | Optional message providing additional context (e.g., when member is not in the group) |
 
 ## Usage Examples
 
-### Basic Usage
+### Remove a user from a group
 
 ```json
 {
@@ -65,11 +66,21 @@ This action uses LDAP Simple Bind authentication with a service account.
 }
 ```
 
+### Remove a group from a group (nested groups)
+
+```json
+{
+  "baseDN": "DC=corp,DC=example,DC=com",
+  "samAccountName": "EngineeringTeam",
+  "groupDN": "CN=AllStaff,OU=Groups,DC=corp,DC=example,DC=com"
+}
+```
+
 ### Job Specification
 
 ```json
 {
-  "id": "remove-user-from-hr-group",
+  "id": "remove-member-from-hr-group",
   "type": "nodejs-22",
   "script": {
     "repository": "github.com/sgnl-actions/ad-remove-from-group",
@@ -97,7 +108,7 @@ For environments with self-signed certificates:
 
 ```json
 {
-  "id": "remove-user-from-hr-group",
+  "id": "remove-member-from-hr-group",
   "type": "nodejs-22",
   "script": {
     "repository": "github.com/sgnl-actions/ad-remove-from-group",
@@ -124,13 +135,13 @@ For environments with self-signed certificates:
 
 This action performs the following LDAP operations:
 
-1. **SEARCH** the base DN to find the user by `sAMAccountName` and get their Distinguished Name
-2. **MODIFY** the group's `member` attribute to delete the user DN
+1. **SEARCH** the base DN to find the member (user or group) by `sAMAccountName` and get their Distinguished Name
+2. **MODIFY** the group's `member` attribute to delete the member DN
 
 ```
-SEARCH baseDN (scope=sub, filter=(&(objectClass=user)(sAMAccountName=<samAccountName>)))
+SEARCH baseDN (scope=sub, filter=(&(|(objectClass=user)(objectClass=group))(sAMAccountName=<samAccountName>)))
 MODIFY groupDN
-  DELETE member: userDN
+  DELETE member: memberDN
 ```
 
 The connection lifecycle is stateless: each invocation binds to the LDAP server, performs the search/modify operations, and unbinds in a `finally` block.
@@ -139,10 +150,10 @@ The connection lifecycle is stateless: each invocation binds to the LDAP server,
 
 ### Success Scenarios
 
-- **User removed**: User successfully removed from group (`removed: true`)
-- **Not a member**: User is not a member of the group (`removed: false`, LDAP codes 16 or 53 handled gracefully)
+- **Member removed**: Member successfully removed from group (`removed: true`)
+- **Not a member**: Member is not in the group (`removed: false`, LDAP codes 16 or 53 handled gracefully)
 
-The action provides idempotent behavior - attempting to remove a user that is not a member of the group will return success rather than an error. Different Active Directory implementations may return either error code 16 ("No Such Attribute") or error code 53 ("Server Unwilling to Perform") for this scenario.
+The action provides idempotent behavior - attempting to remove a member that is not in the group will return success rather than an error. Different Active Directory implementations may return either error code 16 ("No Such Attribute") or error code 53 ("Server Unwilling to Perform") for this scenario.
 
 ### Retryable Errors
 
@@ -156,8 +167,8 @@ The action provides idempotent behavior - attempting to remove a user that is no
 
 | Error | Description |
 |-------|-------------|
-| User not found with sAMAccountName | No user exists with the specified sAMAccountName |
-| Multiple users found | More than one user matches the sAMAccountName (should not happen in a properly configured AD) |
+| Member not found with sAMAccountName | No user or group exists with the specified sAMAccountName |
+| Multiple members found | More than one user or group matches the sAMAccountName (should not happen in a properly configured AD) |
 | Invalid Credentials | Bind DN or password is incorrect |
 | Insufficient Access Rights | Service account lacks permission to modify the group |
 | No Such Object | The group DN does not exist |
@@ -238,12 +249,13 @@ npm run dev
 
 ### Common Issues
 
-1. **"User not found with sAMAccountName"**
+1. **"Member not found with sAMAccountName"**
    - Verify the sAMAccountName is correct (case-insensitive in AD)
-   - Check that the user exists within the specified baseDN
+   - Check that the user or group exists within the specified baseDN
+   - Note: the search matches both `objectClass=user` and `objectClass=group`
 
-2. **"Multiple users found"**
-   - This should not happen in a properly configured AD since sAMAccountName must be unique within a domain
+2. **"Multiple members found"**
+   - This should not happen in a properly configured AD since sAMAccountName must be unique across the domain (across both users and groups)
 
 3. **"Missing LDAP bind credentials"**
    - Ensure `BASIC_USERNAME` and `BASIC_PASSWORD` are set in secrets
@@ -271,8 +283,8 @@ npm run dev
    - Check that the correct port is used (389 for LDAP, 636 for LDAPS)
    - **Important**: TLS configuration only applies to `ldaps://` connections. Plain `ldap://` connections do not use TLS and should not have TLS options applied
 
-9. **"User not a member" variations**
-   - Different AD implementations may return error code 16 ("No Such Attribute") or error code 53 ("Server Unwilling to Perform") when trying to remove a user that is not a member
+9. **"Member not in group" variations**
+   - Different AD implementations may return error code 16 ("No Such Attribute") or error code 53 ("Server Unwilling to Perform") when trying to remove a member that is not in the group
    - Both errors are treated as idempotent success cases - the action will return `{ removed: false }` rather than throwing an error
 
 ### Testing Group Membership
@@ -286,8 +298,11 @@ ldapsearch -H ldaps://ad.corp.example.com:636 \
   -W -b "CN=Target Group,OU=Groups,DC=corp,DC=example,DC=com" \
   "(objectClass=group)" member
 
-# Using PowerShell
+# Using PowerShell - check user membership
 Get-ADGroupMember -Identity "Target Group" | Where-Object { $_.SamAccountName -eq "jdoe" }
+
+# Using PowerShell - check nested group membership
+Get-ADGroupMember -Identity "Parent Group" | Where-Object { $_.objectClass -eq "group" }
 ```
 
 ## Support
